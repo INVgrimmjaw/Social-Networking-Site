@@ -1,163 +1,57 @@
-import { Request, Response } from "express";
-import { ApiError } from "../shared/utils/ApiError.js";
-import { db } from "../prisma/db.js";
-import { comparePassword, encryptPassword } from "../shared/utils/auth/hash.js";
-import { generateAccessToken, generateRefreshToken, } from "../shared/utils/auth/jwt.js";
-import { setAuthCookies } from "../shared/utils/auth/helper.js";
 import { ApiResponse } from "../shared/utils/ApiResponse.js";
+import { asyncHandler } from "../shared/utils/asyncHandler.js";
+import { requireUserId } from "../shared/utils/requireUserId.js";
+import * as userService from "../services/user.service.js";
+import * as postService from "../services/post.service.js";
+import type { PaginationQuery, UsernameParam } from "../shared/validations/common.validation.js";
 
-const handleError = (res: Response, error: unknown, label: string) => {
-  console.error(`${label}: `, error);
+export const getProfile = asyncHandler(async (req, res) => {
+  const viewerId = requireUserId(req);
+  const { username } = req.params as UsernameParam;
 
-  if (error instanceof ApiError) {
-    return res.status(error.statusCode).json({
-      success: false,
-      message: error.message,
-      errors: error.errors,
-    });
-  }
+  const profile = await userService.getProfile(username, viewerId);
+  return res.status(200).json(new ApiResponse(200, profile, "Profile fetched"));
+});
 
-  return res.status(500).json({
-    success: false,
-    message: "Internal Server Error",
-    errors: [],
-  });
-};
+export const getUserPosts = asyncHandler(async (req, res) => {
+  const viewerId = requireUserId(req);
+  const { username } = req.params as UsernameParam;
+  const { limit, cursor } = req.query as unknown as PaginationQuery;
 
-export const registerUser = async (req: Request, res: Response) => {
-  try {
-    const { name, email, password } = req.body;
+  const page = await postService.getPostsByUsername(username, viewerId, { limit, cursor });
+  return res.status(200).json(new ApiResponse(200, page, "Posts fetched"));
+});
 
-    const normalizedEmail = email.toLowerCase().trim();
+export const followUser = asyncHandler(async (req, res) => {
+  const viewerId = requireUserId(req);
+  const { username } = req.params as UsernameParam;
 
-    const existingUser = await db.orm.public.User.where({
-      email: normalizedEmail,
-    }).first();
+  const result = await userService.followUser(viewerId, username);
+  return res.status(200).json(new ApiResponse(200, result, "Followed"));
+});
 
-    if (existingUser) {
-      throw new ApiError(409, "User with this email already exists");
-    }
+export const unfollowUser = asyncHandler(async (req, res) => {
+  const viewerId = requireUserId(req);
+  const { username } = req.params as UsernameParam;
 
-    const hashedPassword = await encryptPassword(password);
+  const result = await userService.unfollowUser(viewerId, username);
+  return res.status(200).json(new ApiResponse(200, result, "Unfollowed"));
+});
 
-    const user = await db.orm.public.User.create({
-      name: name.toLowerCase().trim(),
-      email: normalizedEmail,
-      password: hashedPassword,
-    });
-    const payload = { id: user.id, name: user.name ?? "", email: user.email };
+export const getFollowers = asyncHandler(async (req, res) => {
+  requireUserId(req);
+  const { username } = req.params as UsernameParam;
+  const { limit, cursor } = req.query as unknown as PaginationQuery;
 
-    const accessToken = generateAccessToken(payload);
-    const refreshToken = generateRefreshToken(payload);
+  const page = await userService.listConnections(username, "followers", { limit, cursor });
+  return res.status(200).json(new ApiResponse(200, page, "Followers fetched"));
+});
 
-    setAuthCookies(res, accessToken, refreshToken);
+export const getFollowing = asyncHandler(async (req, res) => {
+  requireUserId(req);
+  const { username } = req.params as UsernameParam;
+  const { limit, cursor } = req.query as unknown as PaginationQuery;
 
-    return res.status(201).json(
-      new ApiResponse(
-        201,
-        {
-          user: {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            createdAt: user.createdAt,
-          },
-          accessToken,
-          refreshToken,
-        },
-        "User registered successfully"
-      )
-    );
-  } catch (error: unknown) {
-    return handleError(res, error, "Register User Error");
-  }
-};
-
-export const loginUser = async (req: Request, res: Response) => {
-  try {
-    const { email, password } = req.body;
-
-    const user = await db.orm.public.User.where({
-      email: email.toLowerCase().trim(),
-    }).first();
-
-    if (!user) {
-      throw new ApiError(400, "Invalid credentials");
-    }
-
-    const isPasswordCorrect = await comparePassword(password, user.password);
-
-    if (!isPasswordCorrect) {
-      throw new ApiError(400, "Invalid credentials");
-    }
-    const payload = { id: user.id, name: user.name ?? "", email: user.email };
-
-    const accessToken = generateAccessToken(payload);
-    const refreshToken = generateRefreshToken(payload);
-
-    setAuthCookies(res, accessToken, refreshToken);
-
-    return res.status(200).json(
-      new ApiResponse(
-        200,
-        {
-          user: {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            createdAt: user.createdAt,
-          },
-          accessToken,
-          refreshToken,
-        },
-        "User logged in successfully"
-      )
-    );
-  } catch (error: unknown) {
-    return handleError(res, error, "Login User Error");
-  }
-};
-
-export const logoutUser = async (req: Request, res: Response) => {
-  try {
-    res.clearCookie("accessToken");
-    res.clearCookie("refreshToken");
-
-    return res
-      .status(200)
-      .json(new ApiResponse(200, null, "User logged out successfully"));
-  } catch (error: unknown) {
-    return handleError(res, error, "Logout User Error");
-  }
-};
-
-export const getCurrentUser = async (req: Request, res: Response) => {
-  try {
-    const userId = req.user?.id;
-
-    if (userId === undefined) {
-      throw new ApiError(401, "Unauthorized");
-    }
-
-    const user = await db.orm.public.User.where({ id: userId }).first();
-
-    if (!user) {
-      throw new ApiError(404, "User not found");
-    }
-
-    return res.status(200).json(
-      new ApiResponse(
-        200,
-        {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          createdAt: user.createdAt,
-        },
-        "User details fetched successfully"
-      )
-    );
-  } catch (error: unknown) {
-    return handleError(res, error, "Get Current User Error");
-  }
-};
+  const page = await userService.listConnections(username, "following", { limit, cursor });
+  return res.status(200).json(new ApiResponse(200, page, "Following fetched"));
+});

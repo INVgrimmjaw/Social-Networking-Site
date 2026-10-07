@@ -1,13 +1,13 @@
 export interface IUser {
-  id: number;
+  id: string;
   name: string;
   email: string;
 }
 
 export interface IJwtUserPayload {
-  id: number;
+  id: string;
   name: string;
   email: string;
 }
 
-export type ToolExecutor = (userId: number, args: any) => Promise<any>;
+export type ToolExecutor = (userId: string, args: any) => Promise<any>;

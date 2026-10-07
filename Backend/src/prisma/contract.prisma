@@ -1,21 +1,34 @@
 // use prisma-8
 
 model User {
-  id        Int               @id @default(autoincrement())
+  id        String            @id @default(uuid())
   email     String            @unique
   username  String?
   name      String?
   password  String
   createdAt TimestamptzString @default(now())
   posts     Post[]
+  following Follow[]          @relation("UserFollowing")
+  followers Follow[]          @relation("UserFollowers")
+}
+
+model Follow {
+  followerId  String
+  followingId String
+  createdAt   TimestamptzString @default(now())
+  follower    User              @relation("UserFollowing", fields: [followerId], references: [id])
+  following   User              @relation("UserFollowers", fields: [followingId], references: [id])
+
+  @@id([followerId, followingId])
+  @@index([followingId])
 }
 
 model Post {
-  id        Int      @id @default(autoincrement())
+  id        String            @id @default(uuid())
   title     String
   content   String?
-  author    User     @relation(fields: [authorId], references: [id])
-  authorId  Int
+  author    User              @relation(fields: [authorId], references: [id])
+  authorId  String
   createdAt TimestamptzString @default(now())
   updatedAt temporal.updatedAtString()
 }
