@@ -32,8 +32,7 @@ const createUserOrConflict = async (data: {
   try {
     return await orm.User.create(data);
   } catch (error) {
-    // Two simultaneous sign-ups can both pass the pre-checks; the unique
-    // constraints in the database are the real guarantee.
+    //race condition: two requests try to create the same user at the same time. One will succeed, the other will fail with a unique constraint violation.
     if (isUniqueViolation(error)) {
       throw new ApiError(409, "Email or username is already taken");
     }
@@ -62,9 +61,7 @@ export const registerUser = asyncHandler(async (req, res) => {
 
   startSession(res, user);
 
-  return res
-    .status(201)
-    .json(new ApiResponse(201, { user: toSelfUser(user) }, "User registered successfully"));
+  return res.status(201).json(new ApiResponse(201, { user: toSelfUser(user) }, "User registered successfully"));
 });
 
 export const loginUser = asyncHandler(async (req, res) => {
@@ -83,15 +80,14 @@ export const loginUser = asyncHandler(async (req, res) => {
 
   startSession(res, user);
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, { user: toSelfUser(user) }, "User logged in successfully"));
+  return res.status(200).json(new ApiResponse(200, { user: toSelfUser(user) }, "User logged in successfully"));
 });
 
 export const logoutUser = asyncHandler(async (_req, res) => {
   // NOTE: clearCookie only works if these options match the ones used in
   // setAuthCookies (path, domain, sameSite, secure). Ideally add a
   // clearAuthCookies(res) helper next to setAuthCookies and call it here.
+  //will set path and clear cookie function for a specific path later.
   res.clearCookie("accessToken");
   res.clearCookie("refreshToken");
 
@@ -106,7 +102,5 @@ export const getCurrentUser = asyncHandler(async (req, res) => {
     throw new ApiError(404, "User not found");
   }
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, toSelfUser(user), "User details fetched successfully"));
+  return res.status(200).json(new ApiResponse(200, toSelfUser(user), "User details fetched successfully"));
 });

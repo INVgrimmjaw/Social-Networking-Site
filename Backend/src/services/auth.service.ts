@@ -6,13 +6,13 @@ import {
   generateRefreshToken,
 } from "../shared/utils/auth/jwt.js";
 
-const USERNAME_RE = /^[a-z0-9_]{3,15}$/;
+const USERNAME_RE = /^[a-z0-9_]{6,15}$/;
 
 interface UserRow {
   id: string;
   email: string;
-  username: string;
-  name: string;
+  username: string | null;
+  name: string | null;
   bio?: string | null;
   createdAt: string;
 }
@@ -63,7 +63,7 @@ export const registerUser = async (input: RegisterInput) => {
   if (!USERNAME_RE.test(username)) {
     throw new ApiError(
       400,
-      "Username must be 3-15 characters: lowercase letters, numbers, underscores"
+      "Username must be 6-15 characters: lowercase letters, numbers, underscores"
     );
   }
 

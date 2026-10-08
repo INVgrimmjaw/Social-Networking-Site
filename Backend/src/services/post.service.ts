@@ -168,7 +168,7 @@ export const getUserPosts = async (
 };
 
 /** Home feed: top-level posts from people you follow, plus your own. */
-export const getHomeFeed = async (userId: string, params: PageParams = {}) => {
+/*export const getHomeFeed = async (userId: string, params: PageParams = {}) => {
   const follows = await db.orm.public.Follow.where({ followerId: userId })
     .select("followingId")
     .all();
@@ -182,4 +182,4 @@ export const getHomeFeed = async (userId: string, params: PageParams = {}) => {
 
     return (cursor ? query.cursor(cursor) : query).limit(take).all();
   });
-};
+};*/

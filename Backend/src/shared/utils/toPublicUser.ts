@@ -1,7 +1,7 @@
 export interface UserRecord {
   id: string;
   email: string;
-  username: string;
+  username?: string | null;
   name?: string | null;
   createdAt: string;
 }
