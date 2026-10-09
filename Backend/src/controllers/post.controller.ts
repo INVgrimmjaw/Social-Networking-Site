@@ -15,10 +15,10 @@ export const createPost = asyncHandler(async (req, res) => {
 
 export const replyToPost = asyncHandler(async (req, res) => {
   const userId = requireUserId(req);
-  const { id } = req.params as IdParam;
+//  const { id } = req.params as IdParam;
   const { content } = req.body as CreatePostInput;
 
-  const reply = await postService.createPost(userId, content, id);
+  const reply = await postService.createPost(userId, content);
   return res.status(201).json(new ApiResponse(201, reply, "Reply created"));
 });
 
@@ -26,7 +26,7 @@ export const getPost = asyncHandler(async (req, res) => {
   const userId = requireUserId(req);
   const { id } = req.params as IdParam;
 
-  const post = await postService.getPostById(id, userId);
+  const post = await postService.getPostById(id);
   return res.status(200).json(new ApiResponse(200, post, "Post fetched"));
 });
 
@@ -38,7 +38,7 @@ export const deletePost = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, null, "Post deleted"));
 });
 
-export const getFeed = asyncHandler(async (req, res) => {
+/*export const getFeed = asyncHandler(async (req, res) => {
   const userId = requireUserId(req);
   const { limit, cursor } = req.query as unknown as PaginationQuery;
 
@@ -69,4 +69,4 @@ export const unlikePost = asyncHandler(async (req, res) => {
 
   const result = await postService.unlikePost(userId, id);
   return res.status(200).json(new ApiResponse(200, result, "Post unliked"));
-});
+});*/

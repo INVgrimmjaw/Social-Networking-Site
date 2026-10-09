@@ -81,7 +81,7 @@ export const unfollowUser = async (followerId: string, username: string) => {
 };
 
 /** direction "followers": who follows this user. "following": who this user follows. */
-export const listConnections = async (
+/*export const listConnections = async (
   username: string,
   direction: "followers" | "following",
   { limit, cursor }: PageParams
@@ -113,4 +113,4 @@ export const listConnections = async (
     items: userIds.map((id) => userById.get(id)).filter(Boolean),
     nextCursor: hasMore ? (pageRows[pageRows.length - 1]?.createdAt ?? null) : null,
   };
-};
+};*/

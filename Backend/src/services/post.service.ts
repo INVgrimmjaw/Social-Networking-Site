@@ -17,11 +17,10 @@ interface Cursor {
 
 interface PostRow {
   id: string;
-  content: string;
-  parentId: string | null;
+  content: string | null;
   createdAt: string;
   updatedAt: string;
-  author: { id: string; username: string; name: string };
+  author: { id: string; username: string | null; name: string | null} | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -34,20 +33,23 @@ const withAuthor = () =>
   db.orm.public.Post.include("author", (author) =>
     author.select("id", "username", "name")
   );
-
+  
 // Pick fields explicitly so nothing extra can leak into responses.
-const toPostDto = (post: PostRow) => ({
-  id: post.id,
-  content: post.content,
-  parentId: post.parentId,
-  createdAt: post.createdAt,
-  updatedAt: post.updatedAt,
-  author: {
-    id: post.author.id,
-    username: post.author.username,
-    name: post.author.name,
-  },
-});
+const toPostDto = (post: PostRow) => {
+  if (!post.author) throw new ApiError(500, "Post is missing its author");
+
+  return {
+    id: post.id,
+    content: post.content ?? "",
+    createdAt: post.createdAt,
+    updatedAt: post.updatedAt,
+    author: {
+      id: post.author.id,
+      username: post.author.username ?? "",
+      name: post.author.name ?? "",
+    },
+  };
+};
 
 const encodeCursor = (cursor: Cursor) =>
   Buffer.from(JSON.stringify(cursor)).toString("base64url");
@@ -108,6 +110,7 @@ const paginate = async (
 export const getPostById = async (postId: string) => {
   const post = await withAuthor().where({ id: postId }).first();
   if (!post) throw new ApiError(404, "Post not found");
+  if (!post.author) throw new ApiError(500, "Post is missing its author");
   return toPostDto(post);
 };
 
@@ -121,7 +124,7 @@ export const createPost = async (authorId: string, rawContent: string) => {
     throw new ApiError(400, `Post cannot exceed ${MAX_POST_LENGTH} characters`);
   }
 
-  const created = await db.orm.public.Post.create({ content, authorId });
+  const created = await db.orm.public.Post.create({ content: content, authorId: authorId });
   return getPostById(created.id);
 };
 
@@ -145,7 +148,7 @@ export const deletePost = async (postId: string, userId: string) => {
 // ---------------------------------------------------------------------------
 
 /** Profile timeline: a user's top-level posts (replies excluded). */
-export const getUserPosts = async (
+/*export const getUserPosts = async (
   username: string,
   params: PageParams = {}
 ) => {
@@ -165,7 +168,7 @@ export const getUserPosts = async (
     // id stays in the sort and the cursor: createdAt alone can tie.
     return (cursor ? query.cursor(cursor) : query).limit(take).all();
   });
-};
+};*/
 
 /** Home feed: top-level posts from people you follow, plus your own. */
 /*export const getHomeFeed = async (userId: string, params: PageParams = {}) => {
